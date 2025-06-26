@@ -231,7 +231,9 @@ func (o *OpenMetrics) Sample() (*spb.StatsRecord, error) {
 		return nil, err
 	}
 	if resp != nil {
-		defer resp.Body.Close()
+		defer func() {
+			_ = resp.Body.Close()
+		}()
 	}
 
 	if resp == nil {
@@ -322,21 +324,6 @@ func GenerateLabelHash(labels map[string]string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-// IsAvailable checks if the OpenMetrics endpoint is accessible.
-func (o *OpenMetrics) IsAvailable() bool {
-	// try to fetch the metrics once to check if the endpoint is available
-	_, err := o.Sample()
-	if err != nil {
-		o.logger.Warn(
-			"monitor: openmetrics: failed to fetch metrics from endpoint",
-			"url", o.url,
-			"error", err,
-		)
-		return false
-	}
-	return true
-}
-
-func (o *OpenMetrics) Probe() *spb.MetadataRequest {
+func (o *OpenMetrics) Probe() *spb.EnvironmentRecord {
 	return nil
 }

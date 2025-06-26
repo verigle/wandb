@@ -2,6 +2,7 @@ import copy
 import json
 import os
 import pathlib
+import platform
 import subprocess
 import sys
 import tempfile
@@ -41,7 +42,6 @@ def test_invalid_field_type():
         Settings(api_key=271828)  # must be a string
 
 
-@pytest.mark.wandb_core_only
 def test_program_python_m():
     with tempfile.TemporaryDirectory() as tmpdir:
         path_module = os.path.join(tmpdir, "module")
@@ -527,3 +527,29 @@ def test_rewind(setting):
 def test_computed_settings_included_in_model_dump():
     settings = Settings(mode="offline")
     assert settings.model_dump()["_offline"] is True
+
+
+@pytest.mark.skipif(
+    platform.system() != "Windows",
+    reason="Drive letters are only relevant on Windows",
+)
+@pytest.mark.parametrize(
+    "root_dir,expected_result",
+    [
+        ("C:\\other", lambda x: x is not None),
+        ("D:\\other", lambda x: x is None),
+    ],
+)
+def test_program_relpath_windows(root_dir, expected_result):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        test_file_path = os.path.join(temp_dir, "test_file.py")
+        with open(test_file_path, "w") as f:
+            f.write("# Test file for program_relpath testing")
+        result = Settings._get_program_relpath(test_file_path, root_dir)
+        assert expected_result(result)
+
+
+@pytest.mark.parametrize("restricted_chars", [":", ";", ",", "#", "?", "/", "'"])
+def test_run_id_validation(restricted_chars):
+    with pytest.raises(UsageError):
+        Settings(run_id=f"test{restricted_chars}")

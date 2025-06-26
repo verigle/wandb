@@ -2,28 +2,60 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field, Json, ValidationError, WrapValidator
-from pydantic.alias_generators import to_camel
-from pydantic.main import IncEx
-from pydantic_core import to_json
-from pydantic_core.core_schema import ValidatorFunctionWrapHandler
-from typing_extensions import Annotated, override
+from pydantic import BaseModel, ConfigDict, Field, Json, StrictStr
+from typing_extensions import Annotated, TypedDict, Unpack, override
+
+from .utils import IS_PYDANTIC_V2, to_json
+from .v1_compat import PydanticCompatMixin
+
+if TYPE_CHECKING:
+    from pydantic.main import IncEx
 
 
-# Base class for all generated classes/types.
+class ModelDumpKwargs(TypedDict, total=False):
+    """Shared keyword arguments for `BaseModel.model_{dump,dump_json}`."""
+
+    include: IncEx | None
+    exclude: IncEx | None
+    context: dict[str, Any] | None
+    by_alias: bool | None
+    exclude_unset: bool
+    exclude_defaults: bool
+    exclude_none: bool
+    round_trip: bool
+    warnings: bool | Literal["none", "warn", "error"]
+    fallback: Callable[[Any], Any] | None
+    serialize_as_any: bool
+
+
+#: Custom overrides of default kwargs for `BaseModel.model_{dump,dump_json}`.
+MODEL_DUMP_DEFAULTS = ModelDumpKwargs(
+    by_alias=True,  # Always serialize with aliases (e.g. camelCase names)
+    round_trip=True,  # Ensure serialized values remain valid inputs for deserialization
+)
+
+
+# v1-compatible base class for pydantic types.
+class CompatBaseModel(PydanticCompatMixin, BaseModel):
+    __doc__ = None  # Prevent subclasses from inheriting the BaseModel docstring
+
+
+# Base class for all GraphQL-generated types.
 # Omitted from docstring to avoid inclusion in generated docs.
-class Base(BaseModel):
+class GQLBase(CompatBaseModel):
     model_config = ConfigDict(
-        populate_by_name=True,
+        populate_by_name=True,  # Discouraged in pydantic v2.11+, will be deprecated in v3
+        validate_by_name=True,  # Introduced in pydantic v2.11
+        validate_by_alias=True,  # Introduced in pydantic v2.11
+        serialize_by_alias=True,  # Introduced in pydantic v2.11
         validate_assignment=True,
         validate_default=True,
-        extra="forbid",
-        alias_generator=to_camel,
         use_attribute_docstrings=True,
         from_attributes=True,
         revalidate_instances="always",
+        protected_namespaces=(),  # Some GraphQL fields may begin with "model_"
     )
 
     @override
@@ -31,97 +63,66 @@ class Base(BaseModel):
         self,
         *,
         mode: Literal["json", "python"] | str = "json",  # NOTE: changed default
-        include: IncEx | None = None,
-        exclude: IncEx | None = None,
-        context: dict[str, Any] | None = None,
-        by_alias: bool = True,  # NOTE: changed default
-        exclude_unset: bool = False,
-        exclude_defaults: bool = False,
-        exclude_none: bool = False,
-        round_trip: bool = True,  # NOTE: changed default
-        warnings: bool | Literal["none", "warn", "error"] = True,
-        serialize_as_any: bool = False,
+        **kwargs: Unpack[ModelDumpKwargs],
     ) -> dict[str, Any]:
-        return super().model_dump(
-            mode=mode,
-            include=include,
-            exclude=exclude,
-            context=context,
-            by_alias=by_alias,
-            exclude_unset=exclude_unset,
-            exclude_defaults=exclude_defaults,
-            exclude_none=exclude_none,
-            round_trip=round_trip,
-            warnings=warnings,
-            serialize_as_any=serialize_as_any,
-        )
+        kwargs = {**MODEL_DUMP_DEFAULTS, **kwargs}
+        return super().model_dump(mode=mode, **kwargs)
 
     @override
     def model_dump_json(
         self,
         *,
         indent: int | None = None,
-        include: IncEx | None = None,
-        exclude: IncEx | None = None,
-        context: dict[str, Any] | None = None,
-        by_alias: bool = True,  # NOTE: changed default
-        exclude_unset: bool = False,
-        exclude_defaults: bool = False,
-        exclude_none: bool = False,
-        round_trip: bool = True,  # NOTE: changed default
-        warnings: bool | Literal["none", "warn", "error"] = True,
-        serialize_as_any: bool = False,
+        **kwargs: Unpack[ModelDumpKwargs],
     ) -> str:
-        return super().model_dump_json(
-            indent=indent,
-            include=include,
-            exclude=exclude,
-            context=context,
-            by_alias=by_alias,
-            exclude_unset=exclude_unset,
-            exclude_defaults=exclude_defaults,
-            exclude_none=exclude_none,
-            round_trip=round_trip,
-            warnings=warnings,
-            serialize_as_any=serialize_as_any,
-        )
-
-
-# Base class with extra customization for GQL generated types.
-# Omitted from docstring to avoid inclusion in generated docs.
-class GQLBase(Base):
-    model_config = ConfigDict(
-        extra="ignore",
-        protected_namespaces=(),
-    )
+        kwargs = {**MODEL_DUMP_DEFAULTS, **kwargs}
+        return super().model_dump_json(indent=indent, **kwargs)
 
 
 # ------------------------------------------------------------------------------
 # Reusable annotations for field types
 T = TypeVar("T")
 
-GQLId = Annotated[
-    str,
-    Field(repr=False, strict=True, frozen=True),
-]
+if IS_PYDANTIC_V2 or TYPE_CHECKING:
+    GQLId = Annotated[
+        StrictStr,
+        Field(repr=False, frozen=True),
+    ]
+else:
+    # FIXME: Find a way to fix this for pydantic v1, which doesn't like when
+    # `Field(...)` used in the field assignment AND `Annotated[...]`.
+    # This is a problem for codegen, which can currently outputs e.g.
+    #
+    #   class MyModel(GQLBase):
+    #       my_id: GQLId = Field(alias="myID")
+    #
+    GQLId = StrictStr  # type: ignore[misc]
 
 Typename = Annotated[
     T,
-    Field(repr=False, alias="__typename", frozen=True),
+    Field(repr=False, frozen=True, alias="__typename"),
 ]
 
 
-def validate_maybe_json(v: Any, handler: ValidatorFunctionWrapHandler) -> Any:
-    """Wraps default Json[...] field validator to allow instantiation with an already-decoded value."""
-    try:
-        return handler(v)
-    except ValidationError:
-        # Try revalidating after properly jsonifying the value
-        return handler(to_json(v, by_alias=True, round_trip=True))
+def ensure_json(v: Any) -> Any:
+    """In case the incoming value isn't serialized JSON, reserialize it.
+
+    This lets us use `Json[...]` fields with values that are already deserialized.
+    """
+    # NOTE: Assumes that the deserialized type is not itself a string.
+    # Revisit this if we need to support deserialized types that are str/bytes.
+    return v if isinstance(v, (str, bytes)) else to_json(v)
 
 
-SerializedToJson = Annotated[
-    Json[T],
-    # Allow lenient instantiation/validation: incoming data may already be deserialized.
-    WrapValidator(validate_maybe_json),
-]
+if IS_PYDANTIC_V2 or TYPE_CHECKING:
+    from pydantic import BeforeValidator, PlainSerializer
+
+    SerializedToJson = Annotated[
+        Json[T],
+        # Allow lenient instantiation/validation: incoming data may already be deserialized.
+        BeforeValidator(ensure_json),
+        PlainSerializer(to_json),
+    ]
+else:
+    # FIXME: Restore, modify, or replace this later after ensuring pydantic v1 compatibility.
+    SerializedToJson = Json[T]  # type: ignore[misc]

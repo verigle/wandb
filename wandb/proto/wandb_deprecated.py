@@ -3,11 +3,7 @@
 from typing import Literal
 DEPRECATED_FEATURES = Literal[
     "keras_callback__data_type",
-    "run__mode",
-    "run__save_no_args",
-    "run__join",
     "plots",
-    "run__log_sync",
     "init__config_include_keys",
     "init__config_exclude_keys",
     "keras_callback__save_model",
@@ -22,15 +18,18 @@ DEPRECATED_FEATURES = Literal[
     "run__define_metric_best_goal",
     "run__finish_quiet",
     "run__reinit_bool",
+    "run__get_url",
+    "run__project_name",
+    "run__get_project_url",
+    "run__get_sweep_url",
+    "run__use_artifact_use_as",
+    "artifact__use_as",
+    "artifact__init_use_as",
 ]
 
 class Deprecated:
     keras_callback__data_type: DEPRECATED_FEATURES = "keras_callback__data_type"
-    run__mode: DEPRECATED_FEATURES = "run__mode"
-    run__save_no_args: DEPRECATED_FEATURES = "run__save_no_args"
-    run__join: DEPRECATED_FEATURES = "run__join"
     plots: DEPRECATED_FEATURES = "plots"
-    run__log_sync: DEPRECATED_FEATURES = "run__log_sync"
     init__config_include_keys: DEPRECATED_FEATURES = "init__config_include_keys"
     init__config_exclude_keys: DEPRECATED_FEATURES = "init__config_exclude_keys"
     keras_callback__save_model: DEPRECATED_FEATURES = "keras_callback__save_model"
@@ -45,3 +44,10 @@ class Deprecated:
     run__define_metric_best_goal: DEPRECATED_FEATURES = "run__define_metric_best_goal"
     run__finish_quiet: DEPRECATED_FEATURES = "run__finish_quiet"
     run__reinit_bool: DEPRECATED_FEATURES = "run__reinit_bool"
+    run__get_url: DEPRECATED_FEATURES = "run__get_url"
+    run__project_name: DEPRECATED_FEATURES = "run__project_name"
+    run__get_project_url: DEPRECATED_FEATURES = "run__get_project_url"
+    run__get_sweep_url: DEPRECATED_FEATURES = "run__get_sweep_url"
+    run__use_artifact_use_as: DEPRECATED_FEATURES = "run__use_artifact_use_as"
+    artifact__use_as: DEPRECATED_FEATURES = "artifact__use_as"
+    artifact__init_use_as: DEPRECATED_FEATURES = "artifact__init_use_as"

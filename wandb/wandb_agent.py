@@ -139,14 +139,11 @@ class AgentProcess:
         if self._popen:
             # if on windows, wait() will block and we won't be able to interrupt
             if platform.system() == "Windows":
-                try:
-                    while True:
-                        p = self._popen.poll()
-                        if p is not None:
-                            return p
-                        time.sleep(1)
-                except KeyboardInterrupt:
-                    raise
+                while True:
+                    p = self._popen.poll()
+                    if p is not None:
+                        return p
+                    time.sleep(1)
             return self._popen.wait()
         return self._proc.join()
 
@@ -385,7 +382,7 @@ class Agent:
             elif command_type == "resume":
                 result = self._command_run(command)
             else:
-                raise AgentError("No such command: {}".format(command_type))
+                raise AgentError(f"No such command: {command_type}")  # noqa: TRY301
             response["result"] = result
         except Exception:
             logger.exception("Exception while processing command: %s", command)
@@ -469,7 +466,7 @@ class Agent:
                     command_list += [c]
             logger.info(
                 "About to run command: {}".format(
-                    " ".join('"{}"'.format(c) if " " in c else c for c in command_list)
+                    " ".join(f'"{c}"' if " " in c else c for c in command_list)
                 )
             )
             proc = AgentProcess(
@@ -522,7 +519,7 @@ class AgentApi:
 
     def command(self, command):
         command["origin"] = "local"
-        command["id"] = "local-{}".format(self._command_id)
+        command["id"] = f"local-{self._command_id}"
         self._command_id += 1
         resp_queue = self._multiproc_manager.Queue()
         command["resp_queue"] = resp_queue

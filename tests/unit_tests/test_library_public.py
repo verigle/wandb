@@ -73,12 +73,12 @@ SYMBOLS_ROOT_OTHER = {
     "alert",
     "api",
     "apis",
+    "automations",
     "beta",
     "catboost",
     "data_types",
     "division",
     "docker",
-    "wandb.docker",  # what is this?
     "dummy",
     "ensure_configured",
     "env",
@@ -109,7 +109,6 @@ SYMBOLS_ROOT_OTHER = {
     "sync",
     "sys",
     "tensorboard",
-    "wandb.tensorboard",  # TODO: much like wandb.docker, this mysteriously failed in CI...?
     "tensorflow",
     "termerror",
     "termlog",
@@ -148,7 +147,7 @@ SYMBOLS_TYPING = {
     "annotations",
 }
 
-SYMBOLS_SERVICE = {"attach", "detach", "teardown"}
+SYMBOLS_SERVICE = {"attach", "_attach", "teardown", "_teardown"}
 
 SYMBOLS_ANALYTICS = {"analytics", "_Sentry", "_sentry"}
 
@@ -196,7 +195,7 @@ SYMBOLS_RUN = {
     "define_metric",
     # "summary",   # really this should be here
     # mode stuff
-    "mode",
+    "mode",  # deprecated
     "disabled",
     "offline",
     "save",
@@ -219,15 +218,17 @@ SYMBOLS_RUN_RESUME = {
 
 # Look into these
 SYMBOLS_RUN_OTHER = {
-    "path",
-    "get_project_url",
+    "get_url",  # deprecated in favor of url
     "url",
-    "get_url",
-    "get_sweep_url",
-    "start_time",
+    "get_project_url",  # deprecated in favor of project_url
+    "project_url",
+    "project_name",  # deprecated in favor of project
+    "get_sweep_url",  # deprecated in favor of sweep_url
+    "sweep_url",
     "sweep_id",
+    "start_time",
+    "path",
     "dir",
-    "project_name",
 }
 
 

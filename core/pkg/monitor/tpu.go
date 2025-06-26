@@ -47,7 +47,7 @@ type RuntimeMetricServiceClient interface {
 	GetRuntimeMetric(ctx context.Context, in *tpuproto.MetricRequest, opts ...grpc.CallOption) (*tpuproto.MetricResponse, error)
 }
 
-// TPU represents a TPU asset with gRPC connection and client.
+// TPU represents a TPU resource with gRPC connection and client.
 //
 // This code is based on Google's Cloud Accelerator Diagnostics project:
 // https://github.com/google/cloud-accelerator-diagnostics.
@@ -181,14 +181,10 @@ func (t *TPU) Sample() (*spb.StatsRecord, error) {
 	return marshal(metrics, timestamppb.Now()), nil
 }
 
-func (t *TPU) IsAvailable() bool {
-	return t.count > 0
-}
-
 // Close closes the gRPC connection and releases resources.
 func (t *TPU) Close() {
 	if t.conn != nil {
-		t.conn.Close()
+		_ = t.conn.Close()
 		t.conn = nil
 		t.client = nil
 	}
@@ -288,12 +284,12 @@ func (t *TPU) getMetrics(metricName TPUMetricName) ([]*tpuproto.Metric, error) {
 }
 
 // Probe returns the TPU metadata.
-func (t *TPU) Probe() *spb.MetadataRequest {
+func (t *TPU) Probe() *spb.EnvironmentRecord {
 	if t.count == 0 {
 		return nil
 	}
 
-	return &spb.MetadataRequest{
+	return &spb.EnvironmentRecord{
 		Tpu: &spb.TPUInfo{
 			Name:           t.chip.Name,
 			Count:          uint32(t.count),
